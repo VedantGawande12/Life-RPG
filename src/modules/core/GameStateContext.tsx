@@ -82,6 +82,87 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const toggleMute = () => setIsMuted(prev => !prev);
   const dismissLevelUp = () => setActiveLevelUp(null);
 
+  // Sync state from Supabase when authenticated
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+
+    const fetchUserData = async (userId: string) => {
+      setIsLoading(true);
+      try {
+        // Fetch Profile
+        const { data: profileData, error: profileErr } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+
+        if (profileData && !profileErr) {
+          setProfile({
+            id: profileData.id,
+            username: profileData.username,
+            title: profileData.title,
+            level: profileData.level,
+            xp: profileData.xp,
+            gold: profileData.gold,
+            streak: profileData.streak,
+            last_active_date: profileData.last_active_date,
+            stats: {
+              strength: profileData.strength ?? 10,
+              intellect: profileData.intellect ?? 10,
+              charisma: profileData.charisma ?? 10,
+              creativity: profileData.creativity ?? 10,
+            },
+            stat_points: profileData.stat_points ?? 0,
+            equipped_theme: profileData.equipped_theme ?? 'dark_fantasy',
+            equipped_badge: profileData.equipped_badge ?? 'Novice',
+          });
+        }
+
+        // Fetch Quests
+        const { data: questData, error: questErr } = await supabase
+          .from('quests')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false });
+
+        if (questData && !questErr) {
+          setQuests(questData as Quest[]);
+        }
+
+        // Fetch Inventory
+        const { data: invData, error: invErr } = await supabase
+          .from('inventory')
+          .select('*')
+          .eq('user_id', userId);
+
+        if (invData && !invErr) {
+          setInventory(invData as InventoryItem[]);
+        }
+      } catch (err) {
+        console.warn('Error fetching Supabase user data:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Initial session check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        fetchUserData(session.user.id);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        fetchUserData(session.user.id);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
   // Optimistic Quest Addition
   const addQuest = useCallback(async (questData: Omit<Quest, 'id' | 'streak_count' | 'completed'>) => {
     const newQuest: Quest = {
