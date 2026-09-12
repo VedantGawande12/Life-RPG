@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     intellect INTEGER NOT NULL DEFAULT 10 CHECK (intellect >= 0),
     charisma INTEGER NOT NULL DEFAULT 10 CHECK (charisma >= 0),
     creativity INTEGER NOT NULL DEFAULT 10 CHECK (creativity >= 0),
+    stat_points INTEGER NOT NULL DEFAULT 0 CHECK (stat_points >= 0),
     
     -- Customization
     equipped_theme TEXT NOT NULL DEFAULT 'dark_fantasy',
@@ -265,6 +266,7 @@ BEGIN
         intellect = CASE WHEN v_quest.attribute = 'Intellect' THEN intellect + 2 ELSE intellect END,
         charisma = CASE WHEN v_quest.attribute = 'Charisma' THEN charisma + 2 ELSE charisma END,
         creativity = CASE WHEN v_quest.attribute = 'Creativity' THEN creativity + 2 ELSE creativity END,
+        stat_points = CASE WHEN v_leveled_up THEN stat_points + 2 ELSE stat_points END,
         updated_at = NOW()
     WHERE id = v_user_id;
 
