@@ -18,8 +18,10 @@ export interface CharacterProfile {
   streak: number;
   last_active_date: string;
   stats: Attributes;
+  stat_points?: number;
   equipped_theme: string;
   equipped_badge: string;
   created_at?: string;
   updated_at?: string;
 }
+
