@@ -82,11 +82,93 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const toggleMute = () => setIsMuted(prev => !prev);
   const dismissLevelUp = () => setActiveLevelUp(null);
 
+  // Sync state from Supabase when authenticated
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+
+    const fetchUserData = async (userId: string) => {
+      setIsLoading(true);
+      try {
+        // Fetch Profile
+        const { data: profileData, error: profileErr } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+
+        if (profileData && !profileErr) {
+          setProfile({
+            id: profileData.id,
+            username: profileData.username,
+            title: profileData.title,
+            level: profileData.level,
+            xp: profileData.xp,
+            gold: profileData.gold,
+            streak: profileData.streak,
+            last_active_date: profileData.last_active_date,
+            stats: {
+              strength: profileData.strength ?? 10,
+              intellect: profileData.intellect ?? 10,
+              charisma: profileData.charisma ?? 10,
+              creativity: profileData.creativity ?? 10,
+            },
+            stat_points: profileData.stat_points ?? 0,
+            equipped_theme: profileData.equipped_theme ?? 'dark_fantasy',
+            equipped_badge: profileData.equipped_badge ?? 'Novice',
+          });
+        }
+
+        // Fetch Quests
+        const { data: questData, error: questErr } = await supabase
+          .from('quests')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false });
+
+        if (questData && !questErr) {
+          setQuests(questData as Quest[]);
+        }
+
+        // Fetch Inventory
+        const { data: invData, error: invErr } = await supabase
+          .from('inventory')
+          .select('*')
+          .eq('user_id', userId);
+
+        if (invData && !invErr) {
+          setInventory(invData as InventoryItem[]);
+        }
+      } catch (err) {
+        console.warn('Error fetching Supabase user data:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Initial session check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        fetchUserData(session.user.id);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        fetchUserData(session.user.id);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
   // Optimistic Quest Addition
   const addQuest = useCallback(async (questData: Omit<Quest, 'id' | 'streak_count' | 'completed'>) => {
+    const tempId = 'quest_' + Date.now();
     const newQuest: Quest = {
       ...questData,
-      id: 'quest_' + Date.now(),
+      id: tempId,
       completed: false,
       streak_count: 0,
       created_at: new Date().toISOString(),
@@ -100,16 +182,26 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          await supabase.from('quests').insert([{
-            user_id: user.id,
-            title: newQuest.title,
-            description: newQuest.description,
-            attribute: newQuest.attribute,
-            difficulty: newQuest.difficulty,
-            xp_reward: newQuest.xp_reward,
-            gold_reward: newQuest.gold_reward,
-            is_daily: newQuest.is_daily,
-          }]);
+          const { data: inserted, error } = await supabase
+            .from('quests')
+            .insert([{
+              user_id: user.id,
+              title: newQuest.title,
+              description: newQuest.description,
+              attribute: newQuest.attribute,
+              difficulty: newQuest.difficulty,
+              xp_reward: newQuest.xp_reward,
+              gold_reward: newQuest.gold_reward,
+              is_daily: newQuest.is_daily,
+            }])
+            .select('*')
+            .single();
+
+          if (inserted && !error) {
+            setQuests(prev => prev.map(q => q.id === tempId ? (inserted as Quest) : q));
+          } else if (error) {
+            console.error('Supabase quest insert error:', error);
+          }
         }
       } catch (err) {
         console.warn('Supabase sync warning (addQuest):', err);
@@ -121,6 +213,8 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const completeQuest = useCallback(async (id: string) => {
     const quest = quests.find(q => q.id === id);
     if (!quest || quest.completed) return;
+
+    let updatedProfile = profile;
 
     // 1. Mark quest completed optimistically
     setQuests(prev => prev.map(q => 
@@ -160,7 +254,7 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         });
       }
 
-      return {
+      updatedProfile = {
         ...prev,
         xp: newXp,
         gold: newGold,
@@ -168,18 +262,49 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         streak: newStreak,
         last_active_date: todayFormatted,
         stats: newStats,
+        stat_points: didLevelUp ? (prev.stat_points || 0) + 2 : (prev.stat_points || 0),
       };
+      return updatedProfile;
     });
 
-    // 3. Supabase RPC / sync
+    // 3. Supabase RPC & Profile sync
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase.rpc('complete_quest', { quest_id: id });
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          if (id.startsWith('quest_')) {
+            await supabase.from('quests').update({
+              completed: true,
+              completed_at: new Date().toISOString(),
+            }).eq('user_id', user.id).eq('title', quest.title);
+          } else {
+            await supabase.rpc('complete_quest', { quest_id: id }).catch(async () => {
+              await supabase.from('quests').update({
+                completed: true,
+                completed_at: new Date().toISOString(),
+              }).eq('id', id);
+            });
+          }
+
+          await supabase.from('profiles').update({
+            xp: updatedProfile.xp,
+            gold: updatedProfile.gold,
+            level: updatedProfile.level,
+            streak: updatedProfile.streak,
+            strength: updatedProfile.stats.strength,
+            intellect: updatedProfile.stats.intellect,
+            charisma: updatedProfile.stats.charisma,
+            creativity: updatedProfile.stats.creativity,
+            stat_points: updatedProfile.stat_points ?? 0,
+            last_active_date: updatedProfile.last_active_date,
+            updated_at: new Date().toISOString(),
+          }).eq('id', user.id);
+        }
       } catch (err) {
         console.warn('Supabase complete_quest warning:', err);
       }
     }
-  }, [quests]);
+  }, [quests, profile]);
 
   // Delete Quest
   const deleteQuest = useCallback(async (id: string) => {
@@ -202,7 +327,6 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setProfile(prev => ({
       ...prev,
       gold: prev.gold - item.cost,
-      // Apply immediate potion effects
       xp: item.category === 'potion' && item.stat_boost?.xp 
         ? prev.xp + item.stat_boost.xp 
         : prev.xp,
@@ -224,8 +348,29 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     setInventory(prev => [newInventoryItem, ...prev]);
+
+    if (isSupabaseConfigured && supabase) {
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+          supabase.from('inventory').insert([{
+            user_id: user.id,
+            item_id: item.id,
+            item_data: item,
+            equipped: false,
+          }]);
+          supabase.from('profiles').update({
+            gold: profile.gold - item.cost,
+            strength: profile.stats.strength + (item.stat_boost?.strength || 0),
+            intellect: profile.stats.intellect + (item.stat_boost?.intellect || 0),
+            charisma: profile.stats.charisma + (item.stat_boost?.charisma || 0),
+            creativity: profile.stats.creativity + (item.stat_boost?.creativity || 0),
+          }).eq('id', user.id);
+        }
+      });
+    }
+
     return true;
-  }, [profile.gold]);
+  }, [profile.gold, profile.stats]);
 
   // Equip item
   const equipItem = useCallback((inventoryId: string) => {
