@@ -1,6 +1,5 @@
 import React from 'react';
 import { X, Package, Check, Sparkles, Shield, Dumbbell, BookOpen, Crown, Palette } from 'lucide-react';
-import { InventoryItem } from '../../types';
 import { useGameState } from '../core/GameStateContext';
 
 interface InventoryDrawerProps {

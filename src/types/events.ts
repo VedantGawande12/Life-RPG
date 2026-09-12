@@ -1,4 +1,4 @@
-import { Attributes, CharacterProfile } from './user';
+import { CharacterProfile } from './user';
 import { Quest } from './quest';
 import { ShopItem } from './economy';
 

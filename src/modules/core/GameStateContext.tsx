@@ -54,7 +54,7 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   });
 
   const [shopItems] = useState<ShopItem[]>(SHOP_ITEMS);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading] = useState<boolean>(false);
   const [activeLevelUp, setActiveLevelUp] = useState<LevelUpEvent | null>(null);
   const [isMuted, setIsMuted] = useState<boolean>(() => {
     return localStorage.getItem(STORAGE_KEYS.SOUND_MUTED) === 'true';
@@ -237,7 +237,6 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
         return { ...inv, equipped: willEquip };
       }
-      // Unequip others of the same category if title or theme
       return inv;
     }));
   }, []);

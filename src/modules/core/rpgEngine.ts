@@ -1,4 +1,4 @@
-import { Difficulty, AttributeType, Attributes } from '../../types';
+import { Difficulty, AttributeType } from '../../types';
 
 /**
  * Non-linear RPG XP curve:

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Plus, CheckCircle2, Flame, ScrollText, Filter } from 'lucide-react';
-import { Quest, QuestFilter, AttributeType } from '../../types';
+import { Plus, CheckCircle2, Flame, ScrollText } from 'lucide-react';
+import { QuestFilter, AttributeType } from '../../types';
 import { QuestCard } from './QuestCard';
 import { QuestModal } from './QuestModal';
 import { useGameState } from '../core/GameStateContext';
