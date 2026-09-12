@@ -110,3 +110,26 @@ export function getAttributeColor(attribute: AttributeType): {
       };
   }
 }
+
+/**
+ * Calculate streak reward multiplier (1.0x up to 2.0x max for 20+ streak days)
+ */
+export function calculateStreakMultiplier(streak: number): number {
+  if (streak <= 1) return 1.0;
+  // +5% bonus per consecutive day, max 100% bonus (+1.0)
+  const bonus = Math.min(1.0, (streak - 1) * 0.05);
+  return Number((1.0 + bonus).toFixed(2));
+}
+
+/**
+ * Get class rank title based on character level
+ */
+export function getRankTitleForLevel(level: number): string {
+  if (level >= 30) return 'Grand Cyber-Mage';
+  if (level >= 20) return 'Arch-Paladin of Order';
+  if (level >= 15) return 'Master Codeblade';
+  if (level >= 10) return 'Elite Vanguard';
+  if (level >= 5) return 'Apprentice Adventurer';
+  return 'Novice Adventurer';
+}
+
