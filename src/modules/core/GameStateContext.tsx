@@ -4,7 +4,8 @@ import {
   Quest, 
   ShopItem, 
   InventoryItem, 
-  LevelUpEvent 
+  LevelUpEvent,
+  AttributeKey 
 } from '../../types';
 import { INITIAL_PROFILE, SEED_QUESTS, SHOP_ITEMS } from './initialData';
 import { getXpRequiredForLevel, calculateStreak } from './rpgEngine';
@@ -23,6 +24,7 @@ interface GameStateContextType {
   deleteQuest: (id: string) => Promise<void>;
   buyItem: (item: ShopItem) => boolean;
   equipItem: (inventoryId: string) => void;
+  allocateStatPoint: (attr: AttributeKey) => boolean;
   isMuted: boolean;
   toggleMute: () => void;
   isSupabaseActive: boolean;
@@ -237,10 +239,23 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
         return { ...inv, equipped: willEquip };
       }
-      // Unequip others of the same category if title or theme
       return inv;
     }));
   }, []);
+
+  // Allocate stat point
+  const allocateStatPoint = useCallback((attr: AttributeKey): boolean => {
+    if (!profile.stat_points || profile.stat_points <= 0) return false;
+    setProfile(prev => ({
+      ...prev,
+      stat_points: (prev.stat_points || 1) - 1,
+      stats: {
+        ...prev.stats,
+        [attr]: prev.stats[attr] + 1,
+      },
+    }));
+    return true;
+  }, [profile.stat_points]);
 
   return (
     <GameStateContext.Provider value={{
@@ -256,6 +271,7 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       deleteQuest,
       buyItem,
       equipItem,
+      allocateStatPoint,
       isMuted,
       toggleMute,
       isSupabaseActive: isSupabaseConfigured,
