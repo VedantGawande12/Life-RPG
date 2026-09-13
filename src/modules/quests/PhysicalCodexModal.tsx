@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, BookOpen, Check, Sparkles, Coins, Trash2, ChevronDown, ChevronUp, Feather } from 'lucide-react';
+import { X, Plus, BookOpen, Sparkles, Coins, Trash2, ChevronDown, ChevronUp, Feather } from 'lucide-react';
 import { useGameState } from '../core/GameStateContext';
 import { Quest, QuestFilter } from '../../types';
 import { QuestModal } from './QuestModal';
@@ -723,26 +723,22 @@ export const PhysicalCodexModal: React.FC<PhysicalCodexModalProps> = ({ isOpen, 
                               </span>
                             </div>
 
-                            {/* Tactile Wax Seal Button */}
-                            <button
-                              onClick={(e) => handleSealClick(e, quest)}
-                              disabled={quest.completed || isBroken}
-                              aria-label={`Seal oath: ${quest.title}`}
-                              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all border shadow-md ${
-                                isBroken
-                                  ? 'opacity-20 border-stone-800 bg-black cursor-not-allowed'
-                                  : quest.completed
-                                  ? 'bg-[#591616] text-amber-300 border-amber-600/60'
-                                  : 'bg-[#1a110a] border-amber-600/50 text-amber-300 hover:border-amber-400 hover:bg-[#8f2828] hover:scale-110 active:scale-95 cursor-pointer'
-                              }`}
-                              title={quest.completed ? 'Oath Consecrated' : 'Affix Wax Seal'}
-                            >
-                              {quest.completed ? (
-                                <Check className="w-4 h-4 stroke-[2.5]" />
-                              ) : (
+                            {/* Tactile Wax Seal Button (Active Oaths Only) */}
+                            {!quest.completed && (
+                              <button
+                                onClick={(e) => handleSealClick(e, quest)}
+                                disabled={isBroken}
+                                aria-label={`Seal oath: ${quest.title}`}
+                                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all border shadow-md ${
+                                  isBroken
+                                    ? 'opacity-20 border-stone-800 bg-black cursor-not-allowed'
+                                    : 'bg-[#1a110a] border-amber-600/50 text-amber-300 hover:border-amber-400 hover:bg-[#8f2828] hover:scale-110 active:scale-95 cursor-pointer'
+                                }`}
+                                title="Affix Wax Seal"
+                              >
                                 <span className="text-[10px] font-serif font-bold text-amber-300">✦</span>
-                              )}
-                            </button>
+                              </button>
+                            )}
 
                             {/* Erase Inscription / Break Oath / Purge Triumph */}
                             <button

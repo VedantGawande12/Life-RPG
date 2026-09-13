@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, Sparkles, Coins, Check, ChevronDown, ChevronUp, Award } from 'lucide-react';
+import { Trash2, Sparkles, Coins, ChevronDown, ChevronUp, Award } from 'lucide-react';
 import { Quest } from '../../types';
 import { playQuestCompleteSound, playRuneScribeSound, playOathBrokenSound } from '../economy/SoundEffects';
 import { useGameState } from '../core/GameStateContext';
@@ -397,32 +397,28 @@ export const QuestCard: React.FC<QuestCardProps> = ({ quest, onComplete, onDelet
             </span>
           </div>
 
-          {/* Wax Seal Stamp Button */}
-          <button
-            onClick={handleSealClick}
-            disabled={quest.completed || animStage !== 'idle' || isBreaking}
-            aria-label={`Seal decree: ${quest.title}`}
-            title={isCompleteOrTriumph ? 'Oath consecrated in the Chronicle' : 'Stamp Oath with Wax Seal'}
-            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 border shadow-md ${
-              isBreaking
-                ? 'opacity-20 border-stone-800 bg-black cursor-not-allowed'
-                : animStage === 'depressed'
-                ? 'scale-[0.82] bg-black border-amber-600 shadow-inner'
-                : animStage === 'rune-active' || animStage === 'illuminating'
-                ? 'scale-115 bg-amber-900 border-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.9)] text-amber-100'
-                : isCompleteOrTriumph
-                ? 'bg-amber-950/70 text-amber-400 border-amber-500/50 shadow-inner'
-                : 'bg-[#0a0e16] border-amber-500/30 text-amber-500 hover:border-amber-400 hover:scale-110 hover:shadow-rune-gold cursor-pointer'
-            }`}
-          >
-            {isCompleteOrTriumph ? (
-              <Check className="w-4 h-4 stroke-[2.5]" />
-            ) : (
+          {/* Wax Seal Stamp Button (Active Oaths Only) */}
+          {!isCompleteOrTriumph && (
+            <button
+              onClick={handleSealClick}
+              disabled={animStage !== 'idle' || isBreaking}
+              aria-label={`Seal decree: ${quest.title}`}
+              title="Stamp Oath with Wax Seal"
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 border shadow-md ${
+                isBreaking
+                  ? 'opacity-20 border-stone-800 bg-black cursor-not-allowed'
+                  : animStage === 'depressed'
+                  ? 'scale-[0.82] bg-black border-amber-600 shadow-inner'
+                  : animStage === 'rune-active' || animStage === 'illuminating'
+                  ? 'scale-115 bg-amber-900 border-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.9)] text-amber-100'
+                  : 'bg-[#0a0e16] border-amber-500/30 text-amber-500 hover:border-amber-400 hover:scale-110 hover:shadow-rune-gold cursor-pointer'
+              }`}
+            >
               <span className="text-[10px] font-serif font-bold text-amber-400 group-hover:text-amber-200">
                 ✦
               </span>
-            )}
-          </button>
+            </button>
+          )}
 
           {/* Erase Inscription / Break Oath / Purge Triumph Button */}
           <button
