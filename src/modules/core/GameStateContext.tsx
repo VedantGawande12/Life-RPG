@@ -11,6 +11,12 @@ import { INITIAL_PROFILE, SEED_QUESTS, SHOP_ITEMS } from './initialData';
 import { getXpRequiredForLevel, calculateStreak } from './rpgEngine';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 
+export interface CurrentUser {
+  id: string;
+  email?: string;
+  username?: string;
+}
+
 interface GameStateContextType {
   profile: CharacterProfile;
   quests: Quest[];
@@ -28,6 +34,8 @@ interface GameStateContextType {
   isMuted: boolean;
   toggleMute: () => void;
   isSupabaseActive: boolean;
+  currentUser: CurrentUser | null;
+  signOut: () => Promise<void>;
 }
 
 const GameStateContext = createContext<GameStateContextType | null>(null);
@@ -56,11 +64,12 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   });
 
   const [shopItems] = useState<ShopItem[]>(SHOP_ITEMS);
-  const [isLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [activeLevelUp, setActiveLevelUp] = useState<LevelUpEvent | null>(null);
   const [isMuted, setIsMuted] = useState<boolean>(() => {
     return localStorage.getItem(STORAGE_KEYS.SOUND_MUTED) === 'true';
   });
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
 
   // Save to local storage for instant persistence
   useEffect(() => {
@@ -82,21 +91,36 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const toggleMute = () => setIsMuted(prev => !prev);
   const dismissLevelUp = () => setActiveLevelUp(null);
 
+  // Sign out method
+  const signOut = useCallback(async () => {
+    if (isSupabaseConfigured && supabase) {
+      await supabase.auth.signOut();
+    }
+    setCurrentUser(null);
+  }, []);
+
   // Sync state from Supabase when authenticated
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;
+    const client = supabase;
 
-    const fetchUserData = async (userId: string) => {
+    const fetchUserData = async (userId: string, userEmail?: string) => {
       setIsLoading(true);
       try {
         // Fetch Profile
-        const { data: profileData, error: profileErr } = await supabase
+        const { data: profileData, error: profileErr } = await client
           .from('profiles')
           .select('*')
           .eq('id', userId)
           .single();
 
         if (profileData && !profileErr) {
+          setCurrentUser({
+            id: userId,
+            email: userEmail || profileData.email,
+            username: profileData.username,
+          });
+
           setProfile({
             id: profileData.id,
             username: profileData.username,
@@ -119,7 +143,7 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
 
         // Fetch Quests
-        const { data: questData, error: questErr } = await supabase
+        const { data: questData, error: questErr } = await client
           .from('quests')
           .select('*')
           .eq('user_id', userId)
@@ -130,7 +154,7 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
 
         // Fetch Inventory
-        const { data: invData, error: invErr } = await supabase
+        const { data: invData, error: invErr } = await client
           .from('inventory')
           .select('*')
           .eq('user_id', userId);
@@ -146,15 +170,25 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     // Initial session check
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    client.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        fetchUserData(session.user.id);
+        setCurrentUser({
+          id: session.user.id,
+          email: session.user.email,
+        });
+        fetchUserData(session.user.id, session.user.email);
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = client.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        fetchUserData(session.user.id);
+        setCurrentUser({
+          id: session.user.id,
+          email: session.user.email,
+        });
+        fetchUserData(session.user.id, session.user.email);
+      } else {
+        setCurrentUser(null);
       }
     });
 
@@ -278,12 +312,13 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
               completed_at: new Date().toISOString(),
             }).eq('user_id', user.id).eq('title', quest.title);
           } else {
-            await supabase.rpc('complete_quest', { quest_id: id }).catch(async () => {
+            const { error: rpcErr } = await supabase.rpc('complete_quest', { quest_id: id });
+            if (rpcErr) {
               await supabase.from('quests').update({
                 completed: true,
                 completed_at: new Date().toISOString(),
               }).eq('id', id);
-            });
+            }
           }
 
           await supabase.from('profiles').update({
@@ -350,57 +385,114 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setInventory(prev => [newInventoryItem, ...prev]);
 
     if (isSupabaseConfigured && supabase) {
-      supabase.auth.getUser().then(({ data: { user } }) => {
+      const client = supabase;
+      client.auth.getUser().then(async ({ data: { user } }) => {
         if (user) {
-          supabase.from('inventory').insert([{
+          const { error: invErr } = await client.from('inventory').insert([{
             user_id: user.id,
             item_id: item.id,
             item_data: item,
             equipped: false,
           }]);
-          supabase.from('profiles').update({
+          if (invErr) console.warn('Supabase inventory insert warning:', invErr);
+
+          const { error: profErr } = await client.from('profiles').update({
             gold: profile.gold - item.cost,
+            xp: item.category === 'potion' && item.stat_boost?.xp ? profile.xp + item.stat_boost.xp : profile.xp,
             strength: profile.stats.strength + (item.stat_boost?.strength || 0),
             intellect: profile.stats.intellect + (item.stat_boost?.intellect || 0),
             charisma: profile.stats.charisma + (item.stat_boost?.charisma || 0),
             creativity: profile.stats.creativity + (item.stat_boost?.creativity || 0),
+            updated_at: new Date().toISOString(),
+          }).eq('id', user.id);
+          if (profErr) console.warn('Supabase profile update warning:', profErr);
+        }
+      });
+    }
+
+    return true;
+  }, [profile.gold, profile.stats, profile.xp]);
+
+  // Equip item
+  const equipItem = useCallback((inventoryId: string) => {
+    let changedInvItem: InventoryItem | undefined;
+    let newTitle: string | undefined;
+    let newTheme: string | undefined;
+
+    setInventory(prev => prev.map(inv => {
+      if (inv.id === inventoryId) {
+        const willEquip = !inv.equipped;
+        if (willEquip && inv.item_data.category === 'title') {
+          newTitle = inv.item_data.name.replace('Title: ', '');
+          setProfile(p => ({ ...p, title: newTitle! }));
+        } else if (willEquip && inv.item_data.category === 'theme') {
+          newTheme = inv.item_data.id;
+          setProfile(p => ({ ...p, equipped_theme: newTheme! }));
+        }
+        changedInvItem = { ...inv, equipped: willEquip };
+        return changedInvItem;
+      }
+      return inv;
+    }));
+
+    if (isSupabaseConfigured && supabase) {
+      const client = supabase;
+      client.auth.getUser().then(async ({ data: { user } }) => {
+        if (user && changedInvItem) {
+          if (!inventoryId.startsWith('inv_')) {
+            await client.from('inventory').update({
+              equipped: changedInvItem.equipped,
+            }).eq('id', inventoryId).eq('user_id', user.id);
+          } else {
+            await client.from('inventory').update({
+              equipped: changedInvItem.equipped,
+            }).eq('item_id', changedInvItem.item_id).eq('user_id', user.id);
+          }
+
+          if (newTitle || newTheme) {
+            const updates: Record<string, string> = { updated_at: new Date().toISOString() };
+            if (newTitle) updates.title = newTitle;
+            if (newTheme) updates.equipped_theme = newTheme;
+            await client.from('profiles').update(updates).eq('id', user.id);
+          }
+        }
+      });
+    }
+  }, []);
+
+  // Allocate stat point
+  const allocateStatPoint = useCallback((attr: AttributeKey): boolean => {
+    if (!profile.stat_points || profile.stat_points <= 0) return false;
+    const newStatPoints = (profile.stat_points || 1) - 1;
+    const newStats = {
+      ...profile.stats,
+      [attr]: profile.stats[attr] + 1,
+    };
+
+    setProfile(prev => ({
+      ...prev,
+      stat_points: newStatPoints,
+      stats: newStats,
+    }));
+
+    if (isSupabaseConfigured && supabase) {
+      const client = supabase;
+      client.auth.getUser().then(async ({ data: { user } }) => {
+        if (user) {
+          await client.from('profiles').update({
+            stat_points: newStatPoints,
+            strength: newStats.strength,
+            intellect: newStats.intellect,
+            charisma: newStats.charisma,
+            creativity: newStats.creativity,
+            updated_at: new Date().toISOString(),
           }).eq('id', user.id);
         }
       });
     }
 
     return true;
-  }, [profile.gold, profile.stats]);
-
-  // Equip item
-  const equipItem = useCallback((inventoryId: string) => {
-    setInventory(prev => prev.map(inv => {
-      if (inv.id === inventoryId) {
-        const willEquip = !inv.equipped;
-        if (willEquip && inv.item_data.category === 'title') {
-          setProfile(p => ({ ...p, title: inv.item_data.name.replace('Title: ', '') }));
-        } else if (willEquip && inv.item_data.category === 'theme') {
-          setProfile(p => ({ ...p, equipped_theme: inv.item_data.id }));
-        }
-        return { ...inv, equipped: willEquip };
-      }
-      return inv;
-    }));
-  }, []);
-
-  // Allocate stat point
-  const allocateStatPoint = useCallback((attr: AttributeKey): boolean => {
-    if (!profile.stat_points || profile.stat_points <= 0) return false;
-    setProfile(prev => ({
-      ...prev,
-      stat_points: (prev.stat_points || 1) - 1,
-      stats: {
-        ...prev.stats,
-        [attr]: prev.stats[attr] + 1,
-      },
-    }));
-    return true;
-  }, [profile.stat_points]);
+  }, [profile.stat_points, profile.stats]);
 
   return (
     <GameStateContext.Provider value={{
@@ -420,6 +512,8 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       isMuted,
       toggleMute,
       isSupabaseActive: isSupabaseConfigured,
+      currentUser,
+      signOut,
     }}>
       {children}
     </GameStateContext.Provider>

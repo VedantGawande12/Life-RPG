@@ -4,51 +4,122 @@
 
 @layer base {
   body {
-    @apply bg-slate-950 text-slate-100 font-sans antialiased;
+    background-color: #030508;
+    color: #dcd7cc;
+    font-family: 'Inter', sans-serif;
+    background-image: 
+      radial-gradient(ellipse 90% 40% at 50% 0%, rgba(37, 75, 121, 0.08), transparent 70%),
+      radial-gradient(ellipse 60% 50% at 50% 100%, rgba(92, 70, 43, 0.05), transparent 70%),
+      radial-gradient(circle at 15% 25%, rgba(143, 40, 40, 0.03), transparent 40%),
+      radial-gradient(circle at 85% 25%, rgba(88, 54, 109, 0.03), transparent 40%);
+    background-attachment: fixed;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
-  /* Custom subtle scrollbar */
+  h1, h2, h3, h4, .font-serif {
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.08em;
+  }
+
+  /* Intaglio / Carved Stone Separator */
+  .engraved-divider {
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.06) 15%,
+      rgba(138, 98, 48, 0.45) 50%,
+      rgba(255, 255, 255, 0.06) 85%,
+      transparent 100%
+    );
+  }
+
+  /* Subtle Hairline Border */
+  .stone-border {
+    border: 1px solid rgba(255, 255, 255, 0.07);
+  }
+
+  /* Weathered Bronze Border */
+  .bronze-border {
+    border: 1px solid rgba(138, 98, 48, 0.35);
+  }
+
+  /* Worn Parchment Strip */
+  .parchment-strip {
+    background-color: rgba(15, 20, 29, 0.75);
+    border-left: 2px solid rgba(197, 155, 39, 0.4);
+  }
+
+  /* Minimalist Monastic Scrollbar */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 3px;
+    height: 3px;
   }
   ::-webkit-scrollbar-track {
-    background: #0b0f19;
+    background: #030508;
   }
   ::-webkit-scrollbar-thumb {
-    background: #1f293d;
-    border-radius: 9999px;
+    background: #18202d;
+    border-radius: 0;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #334155;
+    background: #2b3850;
   }
 }
 
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  20%, 60% { transform: translateX(-4px); }
-  40%, 80% { transform: translateX(4px); }
+/* Ambient Drifting Mist Animation */
+@keyframes fogDrift {
+  0% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0.18;
+  }
+  50% {
+    transform: translate3d(-3%, -1%, 0);
+    opacity: 0.28;
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0.18;
+  }
 }
 
-.animate-shake {
-  animation: shake 0.35s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+.animate-fog {
+  animation: fogDrift 18s ease-in-out infinite;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.98); }
-  to { opacity: 1; transform: scale(1); }
+/* Subtle Floating Dust Particles */
+@keyframes dustFloat {
+  0% {
+    transform: translateY(0px) rotate(0deg);
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(-80px) rotate(15deg);
+    opacity: 0;
+  }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+.animate-dust {
+  animation: dustFloat 9s linear infinite;
 }
 
-@keyframes slideLeft {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
+/* Flame Flicker */
+@keyframes flameFlicker {
+  0%, 100% {
+    opacity: 0.9;
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px rgba(249, 115, 22, 0.4));
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+    filter: drop-shadow(0 0 8px rgba(249, 115, 22, 0.7));
+  }
 }
 
-.animate-slide-left {
-  animation: slideLeft 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+.animate-flame {
+  animation: flameFlicker 2.5s ease-in-out infinite;
 }

@@ -1,7 +1,6 @@
 import { 
   getXpRequiredForLevel, 
   calculateLevelProgress, 
-  calculateStreak, 
   getDifficultyRewards, 
   calculateStreakMultiplier,
   getRankTitleForLevel 

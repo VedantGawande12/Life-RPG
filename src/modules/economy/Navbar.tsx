@@ -1,127 +1,197 @@
 import React, { useState } from 'react';
-import { Swords, Flame, Coins, Package, ShoppingBag, Volume2, VolumeX, User, HelpCircle } from 'lucide-react';
+import { Volume2, VolumeX, HelpCircle, Coins, Compass, Shield, Package, Key, BookOpen } from 'lucide-react';
 import { useGameState } from '../core/GameStateContext';
+import { LivingFlameStreak } from '../hero/LivingFlameStreak';
 
 interface NavbarProps {
   onOpenShop: () => void;
   onOpenInventory: () => void;
   onOpenAuth: () => void;
+  onOpenCodex?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onOpenShop, onOpenInventory, onOpenAuth }) => {
-  const { profile, isMuted, toggleMute, isSupabaseActive } = useGameState();
-  const [showHelp, setShowHelp] = useState(false);
+function getRomanDate(): string {
+  const now = new Date();
+  const day = now.getDate();
+  const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  const month = months[now.getMonth()];
+  const year = now.getFullYear();
+
+  function toRoman(num: number): string {
+    const lookup: [number, string][] = [
+      [1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'],
+      [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'],
+      [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']
+    ];
+    let result = '';
+    for (const [val, letter] of lookup) {
+      while (num >= val) {
+        result += letter;
+        num -= val;
+      }
+    }
+    return result;
+  }
+
+  return `${toRoman(day)} · ${month} · ${toRoman(year)}`;
+}
+
+export const Navbar: React.FC<NavbarProps> = ({ onOpenShop, onOpenInventory, onOpenAuth, onOpenCodex }) => {
+  const { profile, isMuted, toggleMute, isSupabaseActive, currentUser } = useGameState();
+  const [showLexicon, setShowLexicon] = useState(false);
+  const [isArmoryRuneLit, setIsArmoryRuneLit] = useState(false);
+
+  const handleArmoryClick = () => {
+    setIsArmoryRuneLit(true);
+    setTimeout(() => setIsArmoryRuneLit(false), 900);
+    onOpenShop();
+  };
 
   return (
-    <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-slate-950/80 border-b border-slate-800/80">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-        {/* Brand Logo */}
+    <header className="w-full bg-[#030508]/95 border-b border-white/[0.08] relative z-40 select-none shadow-sanctum-ambient">
+      <div className="w-full px-4 sm:px-8 h-14 flex items-center justify-between text-xs">
+        {/* Left: Sanctuary Emblem */}
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-600 to-amber-400 p-0.5 shadow-glow-gold flex items-center justify-center">
-            <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center text-amber-400">
-              <Swords className="w-5 h-5" />
-            </div>
+          <div className="w-8 h-8 rounded-sm bg-gradient-to-b from-amber-900/40 to-black border border-amber-500/40 flex items-center justify-center shadow-rune-gold">
+            <Compass className="w-4 h-4 text-amber-400" />
           </div>
           <div>
-            <h1 className="font-black text-lg sm:text-xl tracking-tight text-slate-100 font-display flex items-center gap-1.5">
-              <span>LIFE</span>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-200 font-black">
-                RPG
-              </span>
+            <h1 className="text-xs sm:text-sm font-serif tracking-[0.25em] text-slate-100 font-bold uppercase">
+              THE LAST SANCTUM
             </h1>
+            <div className="text-[8px] font-mono tracking-widest text-sanctum-ash uppercase hidden sm:block">
+              ANNO DOMINI · MMXXVI · RUINED CATHEDRAL
+            </div>
           </div>
         </div>
 
-        {/* Global HUD Controls */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Daily Streak Flame */}
-          <div
-            title="Consecutive daily activity streak"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-500/20 text-orange-400 font-mono font-bold text-xs shadow-inner"
-          >
-            <Flame className="w-4 h-4 text-orange-400 fill-orange-400 animate-pulse" />
-            <span>{profile.streak}d</span>
-          </div>
+        {/* Center: Roman Date Header */}
+        <div className="hidden lg:flex items-center gap-2 font-mono text-[10px] tracking-[0.25em] text-sanctum-ash select-none">
+          <span className="text-amber-500/60">✦</span>
+          <span>{getRomanDate()}</span>
+          <span className="text-amber-500/60">✦</span>
+        </div>
 
-          {/* Gold Balance */}
-          <div
-            title="Available gold currency"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 font-mono font-bold text-xs"
-          >
-            <Coins className="w-4 h-4 text-amber-400 fill-amber-400" />
-            <span>{profile.gold}</span>
-          </div>
+        {/* Right Navigation & Economy Telemetry */}
+        <div className="flex items-center gap-2 sm:gap-4 text-xs font-serif tracking-wider">
+          
+          {/* Chamber 1: Codex */}
+          {onOpenCodex && (
+            <button
+              onClick={onOpenCodex}
+              className="text-slate-400 hover:text-amber-200 flex items-center gap-1.5 transition-colors cursor-pointer group"
+              title="Ancient Magical Journal (Hotkey: C)"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
+              <span className="hidden sm:inline">CHRONICLE</span>
+              <kbd className="text-[8px] font-mono text-slate-600 border-l border-white/10 pl-1 hidden lg:inline">C</kbd>
+            </button>
+          )}
 
-          {/* Shop Trigger */}
+          {/* Chamber 3: Armory */}
           <button
-            onClick={onOpenShop}
-            title="Open Armory Shop (Hotkey: S)"
-            className="p-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-amber-400 text-slate-300 hover:text-amber-300 transition cursor-pointer flex items-center gap-1 text-xs font-semibold"
+            onClick={handleArmoryClick}
+            className={`flex items-center gap-1.5 transition-all duration-300 cursor-pointer group px-1.5 py-0.5 rounded ${
+              isArmoryRuneLit
+                ? 'text-amber-200 bg-amber-950/40 shadow-[0_0_15px_rgba(245,158,11,0.5)] border border-amber-500/60 scale-105'
+                : 'text-slate-400 hover:text-amber-200 border border-transparent'
+            }`}
+            title="The Merchant's Armory (Hotkey: S)"
           >
-            <ShoppingBag className="w-4 h-4 text-amber-400" />
-            <span className="hidden md:inline">Shop</span>
+            <Shield
+              className={`w-3.5 h-3.5 transition-all duration-300 ${
+                isArmoryRuneLit
+                  ? 'text-amber-300 filter drop-shadow-[0_0_8px_rgba(245,158,11,0.9)] animate-pulse'
+                  : 'text-slate-500 group-hover:text-amber-400'
+              }`}
+            />
+            <span className="hidden sm:inline">ARMORY</span>
+            <kbd className="text-[8px] font-mono text-slate-600 border-l border-white/10 pl-1 hidden lg:inline">S</kbd>
           </button>
 
-          {/* Inventory Trigger */}
+          {/* Chamber 4: Reliquary / Vault */}
           <button
             onClick={onOpenInventory}
-            title="Open Hero Vault"
-            className="p-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-500 text-slate-300 transition cursor-pointer flex items-center gap-1 text-xs font-semibold"
+            className="text-slate-400 hover:text-amber-200 flex items-center gap-1.5 transition-colors cursor-pointer group"
+            title="The Hero Reliquary (Hotkey: I)"
           >
-            <Package className="w-4 h-4 text-slate-400" />
-            <span className="hidden md:inline">Vault</span>
+            <Package className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400" />
+            <span className="hidden sm:inline">RELIQUARY</span>
+            <kbd className="text-[8px] font-mono text-slate-600 border-l border-white/10 pl-1 hidden lg:inline">I</kbd>
           </button>
 
-          {/* Sound Toggle */}
-          <button
-            onClick={toggleMute}
-            title={isMuted ? 'Unmute SFX' : 'Mute SFX'}
-            className="p-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-500 text-slate-400 hover:text-slate-200 transition cursor-pointer"
-          >
-            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4 text-amber-400" />}
-          </button>
-
-          {/* Keyboard Help */}
-          <button
-            onClick={() => setShowHelp(!showHelp)}
-            title="Keyboard Shortcuts"
-            className="p-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-500 text-slate-400 hover:text-slate-200 transition cursor-pointer hidden sm:block"
-          >
-            <HelpCircle className="w-4 h-4" />
-          </button>
-
-          {/* Auth Status / Button */}
+          {/* Chamber 5: Covenant */}
           <button
             onClick={onOpenAuth}
-            className="p-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-amber-400 text-slate-300 transition cursor-pointer flex items-center gap-1.5"
-            title={isSupabaseActive ? 'Account connected' : 'Connect Supabase Account'}
+            className={`flex items-center gap-1.5 transition-colors cursor-pointer ${
+              currentUser
+                ? 'text-emerald-400 hover:text-emerald-300'
+                : 'text-slate-400 hover:text-amber-200'
+            }`}
+            title={
+              currentUser
+                ? `Covenant Active: ${currentUser.email || currentUser.username} (Hotkey: A)`
+                : isSupabaseActive
+                ? 'Commune with Realm (Sign In) (Hotkey: A)'
+                : 'Demo Mode (Offline) (Hotkey: A)'
+            }
           >
-            <User className="w-4 h-4" />
-            <span className="text-xs font-semibold hidden lg:inline">
-              {isSupabaseActive ? 'Cloud Sync' : 'Demo Mode'}
-            </span>
+            <Key className={`w-3.5 h-3.5 ${currentUser ? 'text-emerald-400' : 'text-slate-500'}`} />
+            <span className="hidden sm:inline">{currentUser ? 'COVENANT' : 'COMMUNE'}</span>
+            <kbd className="text-[8px] font-mono text-slate-600 border-l border-white/10 pl-1 hidden lg:inline">A</kbd>
           </button>
+
+          {/* Gold Ore Medallion & Bonfire Streak */}
+          <div className="flex items-center gap-3 pl-3 border-l border-white/10 font-mono text-xs">
+            <div id="navbar-gold-counter" className="flex items-center gap-1.5 text-amber-300 font-bold transition-transform duration-300" title="Gold Ore Balance">
+              <Coins className="w-3.5 h-3.5 text-amber-500" />
+              <span>{profile.gold}</span>
+            </div>
+            <LivingFlameStreak streak={profile.streak} compact={true} />
+          </div>
+
+          {/* Audio & Runic Lexicon Controls */}
+          <div className="flex items-center gap-1.5 text-slate-500 pl-2">
+            <button
+              onClick={toggleMute}
+              className="hover:text-amber-200 transition cursor-pointer p-1"
+              title={isMuted ? "Unmute Ambient SFX" : "Mute SFX"}
+            >
+              {isMuted ? <VolumeX className="w-3.5 h-3.5 text-slate-600" /> : <Volume2 className="w-3.5 h-3.5 text-amber-500/80" />}
+            </button>
+            <button
+              onClick={() => setShowLexicon(!showLexicon)}
+              className="hover:text-amber-200 transition cursor-pointer p-1 hidden sm:block"
+              title="Sacred Lexicon & Shortcuts"
+            >
+              <HelpCircle className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Shortcuts Help Modal / Dropdown */}
-      {showHelp && (
-        <div className="absolute right-4 top-18 z-50 w-72 bg-slate-900 border border-slate-700 rounded-2xl p-4 shadow-2xl text-xs space-y-2">
-          <div className="flex items-center justify-between font-bold text-slate-200 pb-1 border-b border-slate-800">
-            <span>Keyboard Shortcuts</span>
-            <button onClick={() => setShowHelp(false)} className="text-slate-500 hover:text-slate-300">✕</button>
+      {/* Runic Lexicon Dropdown */}
+      {showLexicon && (
+        <div className="absolute right-4 sm:right-8 top-14 w-64 bg-[#070a10] border border-white/15 p-4 shadow-2xl text-[11px] space-y-2 z-50">
+          <div className="flex items-center justify-between font-serif font-bold text-amber-200 pb-1.5 border-b border-white/10 tracking-widest uppercase">
+            <span>Runic Keybindings</span>
+            <button onClick={() => setShowLexicon(false)} className="text-slate-500 hover:text-slate-300">✕</button>
           </div>
           <div className="flex justify-between items-center text-slate-300">
-            <span>Forge New Quest</span>
-            <kbd className="px-2 py-0.5 bg-slate-800 rounded border border-slate-700 font-mono text-[11px]">N</kbd>
+            <span className="font-sans">Quest Chronicle Journal</span>
+            <kbd className="px-1.5 py-0.5 bg-black border border-white/10 font-mono text-[9px] text-amber-400">C</kbd>
           </div>
           <div className="flex justify-between items-center text-slate-300">
-            <span>Open Armory Shop</span>
-            <kbd className="px-2 py-0.5 bg-slate-800 rounded border border-slate-700 font-mono text-[11px]">S</kbd>
+            <span className="font-sans">Inscribe Oath</span>
+            <kbd className="px-1.5 py-0.5 bg-black border border-white/10 font-mono text-[9px] text-amber-400">N</kbd>
           </div>
           <div className="flex justify-between items-center text-slate-300">
-            <span>Close Any Dialog</span>
-            <kbd className="px-2 py-0.5 bg-slate-800 rounded border border-slate-700 font-mono text-[11px]">Esc</kbd>
+            <span className="font-sans">Merchant Armory</span>
+            <kbd className="px-1.5 py-0.5 bg-black border border-white/10 font-mono text-[9px] text-amber-400">S</kbd>
+          </div>
+          <div className="flex justify-between items-center text-slate-300">
+            <span className="font-sans">Dismiss Sanctuary</span>
+            <kbd className="px-1.5 py-0.5 bg-black border border-white/10 font-mono text-[9px] text-amber-400">Esc</kbd>
           </div>
         </div>
       )}
