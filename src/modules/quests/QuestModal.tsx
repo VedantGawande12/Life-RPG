@@ -98,9 +98,6 @@ export const QuestModal: React.FC<QuestModalProps> = ({ isOpen, onClose, onSave 
     // Step 3: Attribute rune stamps onto page (280ms)
     setTimeout(() => {
       setSubmitStage('rune-stamped');
-      if (!isMuted) {
-        playRuneScribeSound();
-      }
     }, 280);
 
     // Step 4: XP reward appears (460ms)
